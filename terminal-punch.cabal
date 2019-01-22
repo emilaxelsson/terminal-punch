@@ -1,16 +1,27 @@
 name:                   terminal-punch
 version:                0.1
-synopsis:               Simple command-line time tracker
--- description:
+synopsis:               Simple terminal-based time tracker
+description:            @terminal-punch@ is a convenient time tracker for the
+                        terminal.
+                        .
+                        For more information, see the
+                        <https://github.com/emilaxelsson/trackit/blob/master/README.md README>.
 license:                BSD3
 license-file:           LICENSE
 author:                 Emil Axelsson
 maintainer:             78emil@gmail.com
-copyright:              2018 Emil Axelsson
--- category:
+copyright:              2019 Emil Axelsson
+homepage:               https://github.com/emilaxelsson/terminal-punch
+bug-reports:            https://github.com/emilaxelsson/terminal-punch/issues
+category:               Utils
 build-type:             Simple
-extra-source-files:     ChangeLog.md
 cabal-version:          >=1.10
+
+extra-source-files:     README.md
+
+source-repository head
+  type:     git
+  location: https://github.com/emilaxelsson/terminal-punch.git
 
 executable punch
   hs-source-dirs:       lib .
@@ -25,7 +36,7 @@ executable punch
   default-extensions:   DeriveFunctor
                         FlexibleContexts
                         TypeFamilies
-  ghc-options:          -Wall
+  ghc-options:          -Wall -Wno-missing-signatures
 
 test-suite tests
   type:                 exitcode-stdio-1.0
@@ -39,3 +50,4 @@ test-suite tests
   default-extensions:   FlexibleContexts
                         TupleSections
                         TypeFamilies
+  ghc-options:          -Wall -Wno-missing-signatures
