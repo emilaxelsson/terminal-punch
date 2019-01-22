@@ -16,7 +16,7 @@ Installation
 Stability
 ----------------------------------------
 
-Despite its early stage, `terminal-punch` seems to work very reliably. It has a [property-based test suite](tests/Tests.hs) that covers most aspects of its time measurement.
+Despite its early stage, `terminal-punch` seems to work very reliably. It has a [property-based test suite](https://github.com/emilaxelsson/terminal-punch/blob/master/tests/Tests.hs) that covers most aspects of its time measurement.
 
 
 
@@ -119,4 +119,5 @@ One idea for fixing this problem would be to support different "projects". Each 
 
   * Need a better UI for switching between projects. Probably best to use [brick](https://hackage.haskell.org/package/brick) for this.
   * Switching project should automatically stop any running interval in the current project.
+  * The current project should be remembered between runs.
   * Summary view could show totals both for the current project and for all projects combined.
