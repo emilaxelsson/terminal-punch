@@ -131,7 +131,7 @@ main = do
 
     runWithLog log = do
       showSummary log
-      case lastMay log of
+      case lastMay $ filter isEvent log of
         Nothing -> prompt False
         Just (Stop _) -> prompt False
         _ -> prompt True
