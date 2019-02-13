@@ -106,13 +106,17 @@ punch event = do
   punchFile <- getPunchFilePath
   appendFile punchFile $ (++ "\n") $ show $ event t
 
+lastMay :: [a] -> Maybe a
+lastMay [] = Nothing
+lastMay as = Just (last as)
+
 main :: IO ()
 main = do
   setTitle "Punch"
   hSetBuffering stdin NoBuffering
-  go
+  run
   where
-    go = do
+    run = do
       putStrLn "\ESCc"
         -- `clearScreen` inserts newlines instead of actually clearing the
         -- terminal. See this discussion:
@@ -120,16 +124,17 @@ main = do
       hideCursor
         -- Needed after clearing. See the above link.
       elog <- readLog
-      case elog of
-        Left msg -> handleError msg
-        Right log -> case validLog log of
-          Left msg -> handleError msg
-          Right _ -> do
-            showSummary log
-            case log of
-              [] -> prompt False
-              _ | Stop _ <- last log -> prompt False
-                | otherwise -> prompt True
+      either handleError runWithLog $ do
+        log <- elog
+        void $ validLog log
+        return log
+
+    runWithLog log = do
+      showSummary log
+      case lastMay log of
+        Nothing -> prompt False
+        Just (Stop _) -> prompt False
+        _ -> prompt True
 
     handleError msg = do
       putStrLn "Error in .punch file:"
@@ -141,22 +146,21 @@ main = do
       putStrLn "* Press any other key to continue."
       c <- getChar
       when (c `elem` "q\ESC") (putStrLn "" >> showCursor >> exitSuccess)
-      go
+      run
 
     prompt running = do
       if running
         then do
           setSGR [SetColor Foreground Vivid Green]
           putStr ">> running"
-          setSGR [Reset]
         else do
           setSGR [SetColor Foreground Vivid Red]
           putStr ">> stopped"
-          setSGR [Reset]
+      setSGR [Reset]
       putStrLn ""
       c <- getChar
       when (c `elem` "q\ESC") (putStrLn "" >> showCursor >> exitSuccess)
       when (c == ' ') $ if running
         then punch Stop
         else punch Start
-      go
+      run
