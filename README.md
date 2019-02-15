@@ -113,6 +113,8 @@ Any number of period markers can be inserted into the log.
 Limitations and future work
 ----------------------------------------
 
+### Multiple projects
+
 `punch` doesn't currently have a way to distinguish between different kinds of work.
 
 One idea for fixing this problem would be to support different "projects". Each project could have its own log file in the `.punch/` directory. Some ideas regarding this approach:
@@ -121,3 +123,9 @@ One idea for fixing this problem would be to support different "projects". Each 
   * Switching project should automatically stop any running interval in the current project.
   * The current project should be remembered between runs.
   * Summary view could show totals both for the current project and for all projects combined.
+
+### Time zones
+
+`punch` logs time relative to the local time zone. This means that, for example, switching time zones in the middle of a running interval will lead to incorrectly measured time.
+
+The solution would be to include information about the time zone with the logged events. However, the log file is meant to be a human-editable document, so I'm not sure it's worth the extra complexity just to get consistency across time zone changes.
