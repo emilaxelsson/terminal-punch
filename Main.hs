@@ -79,24 +79,54 @@ showTotal dt = show hours ++ " hours, " ++ show (todMin t) ++ " minutes"
 getLocalTime :: IO LocalTime
 getLocalTime = utcToLocalTime <$> getCurrentTimeZone <*> getCurrentTime
 
-showSummary :: LOG -> IO ()
-showSummary log = do
+-- | Labels for weeks, starting from this week and going backwards
+weekLabels :: [String]
+weekLabels =
+  "This week" :
+  "Last week" : [show (w :: Integer) ++ " weeks ago" | w <- [2 ..]]
+
+-- | Start 'Day' of week, starting from this week and going backwards
+weekBeginnings ::
+     LocalTime -- ^ Current time
+  -> (Day, [Day]) -- ^ (this week, previous weeks)
+weekBeginnings now =
+  ( addDays (negate daysSinceMon) thisDay
+  , [ addDays (negate (daysSinceMon + 7 * weeksAgo)) thisDay
+    | weeksAgo <- [1 ..]
+    ]
+  )
+  where
+    thisDay = localDay now
+    daysSinceMon = fromIntegral $ pred $ fromEnum $ dayOfWeek thisDay
+
+showSummary ::
+     Int -- ^ Number of additional weeks to show time for
+  -> LOG
+  -> IO ()
+showSummary extraWeeks log = do
   now <- getLocalTime
   let log' = stopNow now log
       is = intervals log'
-  let daysSinceMon = fromIntegral $ pred $ fromEnum $ dayOfWeek $ localDay now
-      lastWeek = addDays (negate (daysSinceMon + 7)) $ localDay now
-      thisWeek = addDays (negate daysSinceMon) $ localDay now
-      yesterday = addDays (-1) $ localDay now
       today = localDay now
+      yesterday = addDays (-1) today
+      (thisWeek, earlierWeeks) = weekBeginnings now
+  let weekIntervals =
+        fromDay thisWeek is :
+        [ betweenDays week next is
+        | (week, next) <- zip earlierWeeks (thisWeek : earlierWeeks)
+        ]
   printTable $ map (fmap showTotal) $ concat
     [ [HLine]
     , getPeriods log'
-    , [ Info False ("Last week", totalTime $ betweenDays lastWeek thisWeek is)
-      , Info False ("This week", totalTime $ fromDay thisWeek is)
-      , HLine
-      , Info False ("Yesterday", totalTime $ betweenDays yesterday today is)
-      , Info True  ("Today",     totalTime $ fromDay today is)
+    , concat
+      [ [ Info False (label, totalTime week)
+        | (label, week) <-
+            reverse $ take (extraWeeks + 1) $ zip weekLabels weekIntervals
+        ]
+      , [ HLine
+        , Info False ("Yesterday", totalTime $ betweenDays yesterday today is)
+        , Info True  ("Today",     totalTime $ fromDay today is)
+        ]
       ]
     ]
 
@@ -114,9 +144,9 @@ main :: IO ()
 main = do
   setTitle "Punch"
   hSetBuffering stdin NoBuffering
-  run
+  run 1
   where
-    run = do
+    run extraWeeks = do
       putStrLn "\ESCc"
         -- `clearScreen` inserts newlines instead of actually clearing the
         -- terminal. See this discussion:
@@ -124,13 +154,13 @@ main = do
       hideCursor
         -- Needed after clearing. See the above link.
       elog <- readLog
-      either handleError runWithLog $ do
+      either handleError (runWithLog extraWeeks) $ do
         log <- elog
         void $ validLog log
         return log
 
-    runWithLog log = do
-      showSummary log
+    runWithLog extraWeeks log = do
+      showSummary extraWeeks log
       case lastMay $ filter isEvent log of
         Nothing -> prompt False
         Just (Stop _) -> prompt False
@@ -146,7 +176,7 @@ main = do
       putStrLn "* Press any other key to continue."
       c <- getChar
       when (c `elem` "q\ESC") (putStrLn "" >> showCursor >> exitSuccess)
-      run
+      run 1
 
     prompt running = do
       if running
@@ -163,4 +193,6 @@ main = do
       when (c == ' ') $ if running
         then punch Stop
         else punch Start
-      run
+      if c == 'e'
+        then run 4
+        else run 1

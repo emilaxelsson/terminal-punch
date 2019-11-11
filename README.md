@@ -31,6 +31,7 @@ The program listens to the following keys:
 
   * **space** to start or stop an interval.
   * **q** or **esc** to quit.
+  * **e** to temporarily show extended history.
   * Any other key to update the summary.
       - This is useful if time has passed since `punch` was started or if the log file has been updated (see below).
 
