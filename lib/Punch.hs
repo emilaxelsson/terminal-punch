@@ -11,6 +11,10 @@ import GHC.Stack (HasCallStack)
 oops :: HasCallStack => a
 oops = error "internal error"
 
+-- | \"Add\" an integer to an enumerable value
+succN :: Enum a => Int -> a -> a
+succN n a = toEnum (fromEnum a + n)
+
 -- | Time interval denoted by a pair of a start and stop time
 --
 -- The start time is included in the interval and the stop time is excluded (see
@@ -20,11 +24,11 @@ type Interval time = (time, time)
 occursIn :: AbstractTime time => time -> Interval time -> Bool
 occursIn t (t1, t2) = t1 <= t && t < t2
 
-class ( Ord time
-      , Ord (DayOf time)
-      , Enum (DayOf time)
-      , Num (MeasuredTime time)
-      ) =>
+class (Ord day, Enum day) => AbstractDay day where
+  -- | Days since start of week (counting from 0)
+  weekDay :: day -> Int
+
+class (Ord time, AbstractDay (DayOf time), Num (MeasuredTime time)) =>
       AbstractTime time
   where
   type DayOf time
@@ -39,6 +43,9 @@ class ( Ord time
 
   -- | Start of the day
   midnightOf :: DayOf time -> time
+
+instance AbstractDay Day where
+  weekDay = fromEnum . dayOfWeek
 
 instance AbstractTime LocalTime where
   type DayOf        LocalTime = Day
@@ -166,6 +173,31 @@ totalTime ::
   => [Interval time]
   -> MeasuredTime time
 totalTime = sum . map intervalLength
+
+weekIntervals' ::
+     AbstractTime time
+  => DayOf time -- ^ Monday of latest week
+  -> [Interval time]
+  -> [[Interval time]]
+weekIntervals' _ [] = []
+weekIntervals' week is =
+  thisWeek : weekIntervals' (succN (-7) week) earlierIntervals
+  where
+    thisWeek = fromDay week is
+    earlierIntervals = toDay week is
+
+-- | Divide intervals by week
+weekIntervals ::
+     AbstractTime time
+  => time -- ^ Current time
+  -> [Interval time] -- ^ All intervals
+  -> [[Interval time]]
+        -- ^ Infinite list of intervals divided by week, starting from the
+        --   current week and going backwards in time
+weekIntervals now = weekIntervals' thisMonday
+  where
+    thisDay = dayOf now
+    thisMonday = succN (negate $ pred $ weekDay thisDay) thisDay
 
 -- | List all periods in a log
 --

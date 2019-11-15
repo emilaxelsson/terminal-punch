@@ -85,20 +85,6 @@ weekLabels =
   "This week" :
   "Last week" : [show (w :: Integer) ++ " weeks ago" | w <- [2 ..]]
 
--- | Start 'Day' of week, starting from this week and going backwards
-weekBeginnings ::
-     LocalTime -- ^ Current time
-  -> (Day, [Day]) -- ^ (this week, previous weeks)
-weekBeginnings now =
-  ( addDays (negate daysSinceMon) thisDay
-  , [ addDays (negate (daysSinceMon + 7 * weeksAgo)) thisDay
-    | weeksAgo <- [1 ..]
-    ]
-  )
-  where
-    thisDay = localDay now
-    daysSinceMon = fromIntegral $ pred $ fromEnum $ dayOfWeek thisDay
-
 showSummary ::
      Int -- ^ Number of additional weeks to show time for
   -> LOG
@@ -109,19 +95,13 @@ showSummary extraWeeks log = do
       is = intervals log'
       today = localDay now
       yesterday = addDays (-1) today
-      (thisWeek, earlierWeeks) = weekBeginnings now
-  let weekIntervals =
-        fromDay thisWeek is :
-        [ betweenDays week next is
-        | (week, next) <- zip earlierWeeks (thisWeek : earlierWeeks)
-        ]
+      weeks = weekIntervals now is
   printTable $ map (fmap showTotal) $ concat
     [ [HLine]
     , getPeriods log'
     , concat
       [ [ Info False (label, totalTime week)
-        | (label, week) <-
-            reverse $ take (extraWeeks + 1) $ zip weekLabels weekIntervals
+        | (label, week) <- reverse $ take (extraWeeks+1) $ zip weekLabels weeks
         ]
       , [ HLine
         , Info False ("Yesterday", totalTime $ betweenDays yesterday today is)
