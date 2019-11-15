@@ -47,17 +47,25 @@ isStop _ = False
 
 -- | The least significant digit represents time of day. The other digits
 -- represent day.
+newtype TestDay = TestDay {unTestDay :: Int}
+  deriving (Eq, Ord, Show, Read, Enum, Num)
+
+-- | The least significant digit represents time of day. The other digits
+-- represent day.
 newtype TestTime = TestTime Int
   deriving (Eq, Ord, Show, Read, Num)
 
 unTestTime :: TestTime -> Int
 unTestTime (TestTime t) = t
 
+instance AbstractDay TestDay where
+  weekDay (TestDay d) = d `mod` 7
+
 instance AbstractTime TestTime where
-  type DayOf        TestTime = Int
+  type DayOf        TestTime = TestDay
   type MeasuredTime TestTime = TestTime
-  dayOf                = (`div` 10) . unTestTime
-  midnightOf           = TestTime . (* 10)
+  dayOf                = TestDay . (`div` 10) . unTestTime
+  midnightOf           = TestTime . (* 10) . unTestDay
   intervalLength (t,u) = max 0 (u-t)
 
 instance Arbitrary TestTime where
@@ -120,12 +128,20 @@ instance Arbitrary LOG where
       is = intervals log
     -- Not a very efficient way to shrink
 
+chooseDay :: Enum day => (day, day) -> Gen day
+chooseDay (from, to) = toEnum <$> choose (fromEnum from, fromEnum to)
+
 genDayFromIntervals :: [Interval TestTime] -> Gen (DayOf TestTime)
 genDayFromIntervals is
   | null ts   = dayOf <$> (arbitrary :: Gen TestTime)
-  | otherwise = choose (dayOf (minimum ts) - 2, dayOf (maximum ts) + 2)
+  | otherwise = chooseDay (dayOf (minimum ts) - 2, dayOf (maximum ts) + 2)
   where
     ts = map fst is ++ map snd is
+
+genTimeFromIntervals :: [Interval TestTime] -> Gen TestTime
+genTimeFromIntervals is = do
+  day <- genDayFromIntervals is
+  (midnightOf day +) . TestTime <$> choose (0, 9)
 
 genTimeAfterLog :: Log TestTime -> Gen TestTime
 genTimeAfterLog log = case reverse $ filter isEvent log of
@@ -193,6 +209,11 @@ prop_totalTime (Intervals is) =
 prop_stopNow (LOG log) =
   forAll (genTimeAfterLog log) $ \t ->
     noError $ validLog $ stopNow t log
+
+prop_weekIntervals (Intervals is) =
+  forAll (genTimeFromIntervals is) $ \now ->
+    let is' = concat $ weekIntervals now is
+     in totalTime is' == totalTime is
 
 prop_parseLog (LOG log) =
   either (error . show) id (parseLog $ printLog log) == log
