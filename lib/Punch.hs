@@ -199,6 +199,23 @@ weekIntervals now = weekIntervals' thisMonday
     thisDay = dayOf now
     thisMonday = succN (negate $ pred $ weekDay thisDay) thisDay
 
+-- | Divide intervals by day
+dayIntervals ::
+     AbstractTime time
+  => time -- ^ Current time
+  -> [Interval time] -- ^ All intervals
+  -> [[Interval time]]
+        -- ^ Infinite list of intervals divided by day, starting from today and
+        --   going backwards in time
+dayIntervals now = go $ dayOf now
+  where
+    go _ [] = []
+    go day is =
+      thisDay : go (succN (-1) day) earlierIntervals
+      where
+        thisDay = fromDay day is
+        earlierIntervals = toDay day is
+
 -- | List all periods in a log
 --
 -- Each period runs from the corresponding 'Period' marker to the end of the

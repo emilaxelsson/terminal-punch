@@ -85,27 +85,42 @@ weekLabels =
   "This week" :
   "Last week" : [show (w :: Integer) ++ " weeks ago" | w <- [2 ..]]
 
+-- | Labels for days, starting from today and going backwards
+dayLabels :: LocalTime -> [String]
+dayLabels now =
+  "Today" :
+  "Yesterday" :
+  map show lastWeeksDays ++
+  [show (d :: Integer) ++ " days ago" | d <- [7 ..]]
+  where
+    today = dayOfWeek $ dayOf now
+    lastWeeksDays
+      = drop 2 -- drop today and yesterday
+      $ take 7
+      $ dropWhile (/= today)
+      $ cycle
+      $ reverse [Monday .. Sunday]
+
 showSummary ::
      Int -- ^ Number of additional weeks to show time for
   -> LOG
   -> IO ()
-showSummary extraWeeks log = do
+showSummary history log = do
   now <- getLocalTime
-  let log' = stopNow now log
-      is = intervals log'
-      today = localDay now
-      yesterday = addDays (-1) today
+  let log'  = stopNow now log
+      is    = intervals log'
       weeks = weekIntervals now is
+      days  = dayIntervals now is
   printTable $ map (fmap showTotal) $ concat
     [ [HLine]
     , getPeriods log'
     , concat
       [ [ Info False (label, totalTime week)
-        | (label, week) <- reverse $ take (extraWeeks+1) $ zip weekLabels weeks
+        | (label, week) <- reverse $ take (history+1) $ zip weekLabels weeks
         ]
-      , [ HLine
-        , Info False ("Yesterday", totalTime $ betweenDays yesterday today is)
-        , Info True  ("Today",     totalTime $ fromDay today is)
+      , [ HLine ]
+      , [ Info (label == "Today") (label, totalTime day)
+        | (label, day) <- reverse $ take (history+1) $ zip (dayLabels now) days
         ]
       ]
     ]
@@ -126,7 +141,7 @@ main = do
   hSetBuffering stdin NoBuffering
   run 1
   where
-    run extraWeeks = do
+    run history = do
       putStrLn "\ESCc"
         -- `clearScreen` inserts newlines instead of actually clearing the
         -- terminal. See this discussion:
@@ -134,13 +149,13 @@ main = do
       hideCursor
         -- Needed after clearing. See the above link.
       elog <- readLog
-      either handleError (runWithLog extraWeeks) $ do
+      either handleError (runWithLog history) $ do
         log <- elog
         void $ validLog log
         return log
 
-    runWithLog extraWeeks log = do
-      showSummary extraWeeks log
+    runWithLog history log = do
+      showSummary history log
       case lastMay $ filter isEvent log of
         Nothing -> prompt False
         Just (Stop _) -> prompt False
@@ -174,5 +189,5 @@ main = do
         then punch Stop
         else punch Start
       if c == 'e'
-        then run 4
+        then run 6
         else run 1

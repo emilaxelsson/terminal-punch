@@ -215,6 +215,11 @@ prop_weekIntervals (Intervals is) =
     let is' = concat $ weekIntervals now is
      in totalTime is' == totalTime is
 
+prop_dayIntervals (Intervals is) =
+  forAll (genTimeFromIntervals is) $ \now ->
+    let is' = concat $ dayIntervals now is
+     in totalTime is' == totalTime is
+
 prop_parseLog (LOG log) =
   either (error . show) id (parseLog $ printLog log) == log
   where
