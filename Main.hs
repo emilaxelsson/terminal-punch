@@ -157,9 +157,9 @@ main = do
     runWithLog history log = do
       showSummary history log
       case lastMay $ filter isEvent log of
-        Nothing -> prompt False
-        Just (Stop _) -> prompt False
-        _ -> prompt True
+        Nothing -> prompt history False
+        Just (Stop _) -> prompt history False
+        _ -> prompt history True
 
     handleError msg = do
       putStrLn "Error in .punch file:"
@@ -173,7 +173,7 @@ main = do
       when (c `elem` "q\ESC") (putStrLn "" >> showCursor >> exitSuccess)
       run 1
 
-    prompt running = do
+    prompt history running = do
       if running
         then do
           setSGR [SetColor Foreground Vivid Green]
@@ -188,6 +188,7 @@ main = do
       when (c == ' ') $ if running
         then punch Stop
         else punch Start
-      if c == 'e'
-        then run 6
-        else run 1
+      case c of
+        '+' -> run $ succ history
+        '-' -> run $ max (pred history) 0
+        _   -> run history
