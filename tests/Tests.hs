@@ -6,6 +6,7 @@
 import Prelude hiding (log)
 
 import Data.List
+import System.Exit (exitFailure, exitSuccess)
 import Test.QuickCheck
 
 import Punch
@@ -232,4 +233,6 @@ prop_parseLog (LOG log) =
 return []
 runTests = $quickCheckAll
 
-main = runTests >> return ()
+main = do
+  passed <- runTests
+  if passed then exitSuccess else exitFailure
