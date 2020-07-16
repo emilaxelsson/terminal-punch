@@ -1,5 +1,5 @@
 name:                   terminal-punch
-version:                0.2
+version:                0.2.1
 synopsis:               Simple terminal-based time tracker
 description:            @terminal-punch@ is a convenient time tracker for the
                         terminal.
@@ -31,7 +31,8 @@ executable punch
                       , base <5
                       , filepath >= 1.1
                       , text >= 1.2
-                      , time >= 1.9
+                      , time >= 1.9 && < 1.10
+                          -- Parsing fails in 1.10
   default-language:     Haskell2010
   default-extensions:   DeriveFunctor
                         FlexibleContexts
