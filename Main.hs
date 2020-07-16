@@ -141,13 +141,16 @@ main = do
   hSetBuffering stdin NoBuffering
   run 1
   where
-    run history = do
+    clear = do
       putStrLn "\ESCc"
         -- `clearScreen` inserts newlines instead of actually clearing the
         -- terminal. See this discussion:
         -- https://stackoverflow.com/q/24754406/1105347
       hideCursor
         -- Needed after clearing. See the above link.
+
+    run history = do
+      clear
       elog <- readLog
       either handleError (runWithLog history) $ do
         log <- elog
@@ -155,11 +158,12 @@ main = do
         return log
 
     runWithLog history log = do
+      clear -- Needed when we skip `run` and jump here directly
       showSummary history log
       case lastMay $ filter isEvent log of
-        Nothing -> prompt history False
-        Just (Stop _) -> prompt history False
-        _ -> prompt history True
+        Nothing -> prompt history log False
+        Just (Stop _) -> prompt history log False
+        _ -> prompt history log True
 
     handleError msg = do
       putStrLn "Error in .punch file:"
@@ -173,7 +177,7 @@ main = do
       when (c `elem` "q\ESC") (putStrLn "" >> showCursor >> exitSuccess)
       run 1
 
-    prompt history running = do
+    prompt history log running = do
       if running
         then do
           setSGR [SetColor Foreground Vivid Green]
@@ -189,6 +193,6 @@ main = do
         then punch Stop
         else punch Start
       case c of
-        '+' -> run $ succ history
-        '-' -> run $ max (pred history) 0
+        '+' -> runWithLog (succ history) log
+        '-' -> runWithLog (max (pred history) 0) log
         _   -> run history
