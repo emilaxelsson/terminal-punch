@@ -5,7 +5,7 @@
 
 import Prelude hiding (log)
 
-import Data.List
+import Data.List (dropWhileEnd)
 import System.Exit (exitFailure, exitSuccess)
 import Test.QuickCheck
 

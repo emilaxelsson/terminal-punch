@@ -6,6 +6,15 @@ import Control.Monad (unless)
 import Data.Char (isSpace)
 import Data.List (dropWhileEnd, tails)
 import Data.Time
+  ( Day
+  , LocalTime(..)
+  , NominalDiffTime
+  , dayOfWeek
+  , diffLocalTime
+  , formatTime
+  , midnight
+  , readPTime
+  )
 import GHC.Stack (HasCallStack)
 import Text.ParserCombinators.ReadP (ReadP)
 import qualified Text.ParserCombinators.ReadP as P
@@ -252,3 +261,17 @@ parseLog :: Read time => String -> Either (PunchError time) (Log time)
 parseLog =
   mapM parsePunch .
   filter (not . null) . map (dropWhile isSpace . stripComment) . lines
+
+-- | Wrapper for 'LocalTime' with custom 'Show' and 'Read' instances
+newtype PunchLocalTime = PunchLT {unPunchLT :: LocalTime}
+  deriving (Eq, Ord)
+
+punchLocalTimeFormat = "%Y-%m-%d %H:%M:%S%Q"
+
+instance Show PunchLocalTime where
+  show = formatTime oops punchLocalTimeFormat . unPunchLT
+
+instance Read PunchLocalTime where
+  readsPrec _ =
+    P.readP_to_S $
+    fmap PunchLT $ readPTime True oops punchLocalTimeFormat
