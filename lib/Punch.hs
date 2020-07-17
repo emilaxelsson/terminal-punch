@@ -7,6 +7,8 @@ import Data.Char (isSpace)
 import Data.List (tails)
 import Data.Time
 import GHC.Stack (HasCallStack)
+import Text.ParserCombinators.ReadP (ReadP)
+import qualified Text.ParserCombinators.ReadP as P
 
 oops :: HasCallStack => a
 oops = error "internal error"
@@ -65,7 +67,7 @@ data Punch time
   = Start time    -- ^ Start an interval
   | Stop time     -- ^ Stop an interval
   | Period String -- ^ Mark the start of a period
-  deriving (Eq, Show, Read)
+  deriving (Eq, Show)
 
 -- | A punch time log
 type Log time = [Punch time]
@@ -223,9 +225,17 @@ dayIntervals now = go $ dayOf now
 listPeriods :: Log time -> [(String, Log time)]
 listPeriods log = [(p, log') | Period p:log' <- tails log]
 
+punchParser :: Read time => ReadP (Punch time)
+punchParser =
+  (P.string "Start "  *> P.skipSpaces *> (Start  <$> P.readS_to_P reads))
+    P.<++
+  (P.string "Stop "   *> P.skipSpaces *> (Stop   <$> P.readS_to_P reads))
+    P.<++
+  (P.string "Period " *> P.skipSpaces *> (Period <$> P.readS_to_P reads))
+
 -- | Parse a 'Punch' event
 parsePunch :: Read time => String -> Either (PunchError time) (Punch time)
-parsePunch s = case reads s' of
+parsePunch s = case P.readP_to_S punchParser s' of
   [(p, "")] -> return p
   _ -> Left $ FormatError s'
   where
