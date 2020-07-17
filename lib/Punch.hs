@@ -4,7 +4,7 @@ import Prelude hiding (log)
 
 import Control.Monad (unless)
 import Data.Char (isSpace)
-import Data.List (tails)
+import Data.List (dropWhileEnd, tails)
 import Data.Time
 import GHC.Stack (HasCallStack)
 import Text.ParserCombinators.ReadP (ReadP)
@@ -239,7 +239,7 @@ parsePunch s = case P.readP_to_S punchParser s' of
   [(p, "")] -> return p
   _ -> Left $ FormatError s'
   where
-    s' = reverse $ dropWhile isSpace $ reverse s
+    s' = dropWhileEnd isSpace s
 
 -- | Remove any suffix starting with "--"
 stripComment :: String -> String
