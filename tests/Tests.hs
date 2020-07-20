@@ -8,6 +8,7 @@ import Prelude hiding (log)
 import Data.List (dropWhileEnd)
 import System.Exit (exitFailure, exitSuccess)
 import Test.QuickCheck
+import Text.Read (readEither)
 
 import Punch
 
@@ -225,6 +226,29 @@ prop_parseLog (LOG log) =
   either (error . show) id (parseLog $ printLog log) == log
   where
     printLog = unlines . map show
+
+
+
+-- Check that the conventional format of the log works (to guard against
+-- unexpected regressions in the parser or printer).
+
+timeStamps =
+  [ "2020-07-17 16:10:00"
+  , "2020-07-17 16:24:18.804513819"
+  ]
+
+prop_read_PunchLocalTime =
+  all (either error (const True))
+    [ readEither time :: Either String PunchLocalTime
+    | time <- timeStamps
+    ]
+
+prop_show_PunchLocalTime =
+  and
+    [ show time == s
+    | s <- timeStamps
+    , let Right time = readEither s :: Either String PunchLocalTime
+    ]
 
 
 
