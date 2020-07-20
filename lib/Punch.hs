@@ -4,9 +4,20 @@ import Prelude hiding (log)
 
 import Control.Monad (unless)
 import Data.Char (isSpace)
-import Data.List (tails)
+import Data.List (dropWhileEnd, tails)
 import Data.Time
+  ( Day
+  , LocalTime(..)
+  , NominalDiffTime
+  , dayOfWeek
+  , diffLocalTime
+  , formatTime
+  , midnight
+  , readPTime
+  )
 import GHC.Stack (HasCallStack)
+import Text.ParserCombinators.ReadP (ReadP)
+import qualified Text.ParserCombinators.ReadP as P
 
 oops :: HasCallStack => a
 oops = error "internal error"
@@ -65,7 +76,7 @@ data Punch time
   = Start time    -- ^ Start an interval
   | Stop time     -- ^ Stop an interval
   | Period String -- ^ Mark the start of a period
-  deriving (Eq, Show, Read)
+  deriving (Eq, Show)
 
 -- | A punch time log
 type Log time = [Punch time]
@@ -223,13 +234,24 @@ dayIntervals now = go $ dayOf now
 listPeriods :: Log time -> [(String, Log time)]
 listPeriods log = [(p, log') | Period p:log' <- tails log]
 
+punchParser :: Read time => ReadP (Punch time)
+punchParser =
+  (P.string "Start "  *> P.skipSpaces *> (Start  <$> P.readS_to_P reads) <* P.eof)
+    P.<++
+  (P.string "Stop "   *> P.skipSpaces *> (Stop   <$> P.readS_to_P reads) <* P.eof)
+    P.<++
+  (P.string "Period " *> P.skipSpaces *> (Period <$> P.readS_to_P reads))
+  -- `eof` avoids problems with non-determinism in the `Read` instance for
+  -- `PunchLocalTime`. The fraction of a second at the end can be of different
+  -- length. (For some reason, the problem doesn't occur in `time-1.9`.)
+
 -- | Parse a 'Punch' event
 parsePunch :: Read time => String -> Either (PunchError time) (Punch time)
-parsePunch s = case reads s' of
+parsePunch s = case P.readP_to_S punchParser s' of
   [(p, "")] -> return p
   _ -> Left $ FormatError s'
   where
-    s' = reverse $ dropWhile isSpace $ reverse s
+    s' = dropWhileEnd isSpace s
 
 -- | Remove any suffix starting with "--"
 stripComment :: String -> String
@@ -242,3 +264,17 @@ parseLog :: Read time => String -> Either (PunchError time) (Log time)
 parseLog =
   mapM parsePunch .
   filter (not . null) . map (dropWhile isSpace . stripComment) . lines
+
+-- | Wrapper for 'LocalTime' with custom 'Show' and 'Read' instances
+newtype PunchLocalTime = PunchLT {unPunchLT :: LocalTime}
+  deriving (Eq, Ord)
+
+punchLocalTimeFormat = "%Y-%m-%d %H:%M:%S%Q"
+
+instance Show PunchLocalTime where
+  show = formatTime oops punchLocalTimeFormat . unPunchLT
+
+instance Read PunchLocalTime where
+  readsPrec _ =
+    P.readP_to_S $
+    fmap PunchLT $ readPTime True oops punchLocalTimeFormat

@@ -1,9 +1,23 @@
+{-# LANGUAGE Rank2Types #-}
+
 module Main (main) where
 
 import Prelude hiding (log)
 
-import Control.Monad
+import Control.Monad (void, when)
+import Data.Coerce (coerce)
 import Data.Time
+  ( LocalTime
+  , NominalDiffTime
+  , dayOfWeek
+  , getCurrentTime
+  , getCurrentTimeZone
+  , timeToDaysAndTimeOfDay
+  , todHour
+  , todMin
+  , utcToLocalTime
+  , DayOfWeek(..)
+  )
 import System.Console.ANSI
   ( Color(..)
   , ColorIntensity(..)
@@ -15,21 +29,19 @@ import System.Console.ANSI
   , setSGR
   , setTitle
   )
-import System.Environment
-import System.Exit
-import System.FilePath
-import System.IO
+import System.Environment (getEnv)
+import System.Exit (exitSuccess)
+import System.FilePath ((</>))
+import System.IO (BufferMode(..), hSetBuffering, stdin)
 
 import Punch
-
-type LOG = Log LocalTime
 
 getPunchFilePath :: IO FilePath
 getPunchFilePath = (</> ".punch") <$> getEnv "HOME"
   -- Can't use `getHomeDirectory` because `directory` requires (via `unix`)
   -- `time <1.9`.
 
-readLog :: IO (Either (PunchError LocalTime) LOG)
+readLog :: IO (Either (PunchError PunchLocalTime) (Log PunchLocalTime))
 readLog = fmap parseLog . readFile =<< getPunchFilePath
 
 data Row a
@@ -103,7 +115,7 @@ dayLabels now =
 
 showSummary ::
      Int -- ^ Number of additional weeks to show time for
-  -> LOG
+  -> Log LocalTime
   -> IO ()
 showSummary history log = do
   now <- getLocalTime
@@ -125,11 +137,11 @@ showSummary history log = do
       ]
     ]
 
-punch :: (LocalTime -> Punch LocalTime) -> IO ()
+punch :: (forall t. t -> Punch t) -> IO ()
 punch event = do
   t <- getLocalTime
   punchFile <- getPunchFilePath
-  appendFile punchFile $ (++ "\n") $ show $ event t
+  appendFile punchFile $ (++ "\n") $ show $ event $ PunchLT t
 
 lastMay :: [a] -> Maybe a
 lastMay [] = Nothing
@@ -153,7 +165,7 @@ main = do
       clear
       elog <- readLog
       either handleError (runWithLog history) $ do
-        log <- elog
+        log <- coerce elog
         void $ validLog log
         return log
 
