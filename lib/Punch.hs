@@ -236,11 +236,14 @@ listPeriods log = [(p, log') | Period p:log' <- tails log]
 
 punchParser :: Read time => ReadP (Punch time)
 punchParser =
-  (P.string "Start "  *> P.skipSpaces *> (Start  <$> P.readS_to_P reads))
+  (P.string "Start "  *> P.skipSpaces *> (Start  <$> P.readS_to_P reads) <* P.eof)
     P.<++
-  (P.string "Stop "   *> P.skipSpaces *> (Stop   <$> P.readS_to_P reads))
+  (P.string "Stop "   *> P.skipSpaces *> (Stop   <$> P.readS_to_P reads) <* P.eof)
     P.<++
   (P.string "Period " *> P.skipSpaces *> (Period <$> P.readS_to_P reads))
+  -- `eof` avoids problems with non-determinism in the `Read` instance for
+  -- `PunchLocalTime`. The fraction of a second at the end can be of different
+  -- length. (For some reason, the problem doesn't occur in `time-1.9`.)
 
 -- | Parse a 'Punch' event
 parsePunch :: Read time => String -> Either (PunchError time) (Punch time)
