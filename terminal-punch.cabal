@@ -43,7 +43,7 @@ test-suite tests
   hs-source-dirs:       lib tests
   main-is:              Tests.hs
   other-modules:        Punch
-  build-depends:        base
+  build-depends:        base <5
                       , QuickCheck
                       , time >= 1.9
   default-language:     Haskell2010
